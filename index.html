@@ -1,0 +1,1776 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UPI Fraud Detection Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+    <style>
+        :root {
+            --bg-primary: #f0f2f5;
+            --bg-secondary: #ffffff;
+            --bg-card: #ffffff;
+            --text-primary: #1a1a2e;
+            --text-secondary: #6b7280;
+            --text-muted: #9ca3af;
+            --border-color: #e5e7eb;
+            --accent-blue: #3b82f6;
+            --accent-red: #ef4444;
+            --accent-green: #10b981;
+            --accent-orange: #f59e0b;
+            --accent-purple: #8b5cf6;
+            --accent-pink: #ec4899;
+            --shadow-sm: 0 1px 3px rgba(0,0,0,0.08);
+            --shadow-md: 0 4px 12px rgba(0,0,0,0.1);
+            --shadow-lg: 0 10px 30px rgba(0,0,0,0.12);
+            --radius: 16px;
+            --radius-sm: 10px;
+            --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        [data-theme="dark"] {
+            --bg-primary: #0f172a;
+            --bg-secondary: #1e293b;
+            --bg-card: #1e293b;
+            --text-primary: #f1f5f9;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+            --border-color: #334155;
+            --shadow-sm: 0 1px 3px rgba(0,0,0,0.3);
+            --shadow-md: 0 4px 12px rgba(0,0,0,0.4);
+            --shadow-lg: 0 10px 30px rgba(0,0,0,0.5);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            transition: var(--transition);
+            min-height: 100vh;
+        }
+
+        .dashboard {
+            max-width: 1440px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        /* Header */
+        .header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 20px 28px;
+            background: var(--bg-card);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow-sm);
+            margin-bottom: 24px;
+            flex-wrap: wrap;
+            gap: 16px;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .logo {
+            width: 48px;
+            height: 48px;
+            background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple));
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            color: white;
+            font-weight: bold;
+        }
+
+        .header-title h1 {
+            font-size: 22px;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .header-title p {
+            font-size: 13px;
+            color: var(--text-secondary);
+            margin-top: 2px;
+        }
+
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .live-indicator {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            background: rgba(16, 185, 129, 0.1);
+            border-radius: 20px;
+            font-size: 13px;
+            color: var(--accent-green);
+            font-weight: 600;
+        }
+
+        .live-dot {
+            width: 8px;
+            height: 8px;
+            background: var(--accent-green);
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.5; transform: scale(1.3); }
+        }
+
+        /* Dark Mode Toggle */
+        .theme-toggle {
+            position: relative;
+            width: 56px;
+            height: 30px;
+            background: var(--border-color);
+            border-radius: 15px;
+            cursor: pointer;
+            transition: var(--transition);
+            border: none;
+            outline: none;
+        }
+
+        .theme-toggle::after {
+            content: '☀️';
+            position: absolute;
+            top: 3px;
+            left: 3px;
+            width: 24px;
+            height: 24px;
+            background: var(--bg-card);
+            border-radius: 50%;
+            transition: var(--transition);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+
+        [data-theme="dark"] .theme-toggle {
+            background: var(--accent-purple);
+        }
+
+        [data-theme="dark"] .theme-toggle::after {
+            content: '🌙';
+            transform: translateX(26px);
+        }
+
+        /* Filters */
+        .filters-bar {
+            display: flex;
+            gap: 12px;
+            padding: 20px 24px;
+            background: var(--bg-card);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow-sm);
+            margin-bottom: 24px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .filter-label {
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--text-muted);
+        }
+
+        .filter-input, .filter-select {
+            padding: 10px 14px;
+            border: 2px solid var(--border-color);
+            border-radius: var(--radius-sm);
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            font-size: 14px;
+            transition: var(--transition);
+            outline: none;
+            min-width: 140px;
+        }
+
+        .filter-input:focus, .filter-select:focus {
+            border-color: var(--accent-blue);
+            box-shadow: 0 0 0 3px rgba(59,130,246,0.15);
+        }
+
+        .filter-btn {
+            padding: 10px 24px;
+            background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple));
+            color: white;
+            border: none;
+            border-radius: var(--radius-sm);
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+            align-self: flex-end;
+        }
+
+        .filter-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(59,130,246,0.3);
+        }
+
+        .filter-btn.reset {
+            background: var(--bg-primary);
+            color: var(--text-secondary);
+            border: 2px solid var(--border-color);
+        }
+
+        /* KPI Cards */
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 20px;
+            margin-bottom: 24px;
+        }
+
+        .kpi-card {
+            background: var(--bg-card);
+            border-radius: var(--radius);
+            padding: 24px;
+            box-shadow: var(--shadow-sm);
+            transition: var(--transition);
+            position: relative;
+            overflow: hidden;
+            cursor: pointer;
+        }
+
+        .kpi-card:hover {
+            transform: translateY(-4px);
+            box-shadow: var(--shadow-lg);
+        }
+
+        .kpi-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            border-radius: var(--radius) var(--radius) 0 0;
+        }
+
+        .kpi-card:nth-child(1)::before { background: linear-gradient(90deg, var(--accent-blue), #60a5fa); }
+        .kpi-card:nth-child(2)::before { background: linear-gradient(90deg, var(--accent-red), #f87171); }
+        .kpi-card:nth-child(3)::before { background: linear-gradient(90deg, var(--accent-green), #34d399); }
+        .kpi-card:nth-child(4)::before { background: linear-gradient(90deg, var(--accent-orange), #fbbf24); }
+        .kpi-card:nth-child(5)::before { background: linear-gradient(90deg, var(--accent-purple), #a78bfa); }
+        .kpi-card:nth-child(6)::before { background: linear-gradient(90deg, var(--accent-pink), #f472b6); }
+
+        .kpi-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 16px;
+        }
+
+        .kpi-icon {
+            width: 44px;
+            height: 44px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+        }
+
+        .kpi-card:nth-child(1) .kpi-icon { background: rgba(59,130,246,0.12); }
+        .kpi-card:nth-child(2) .kpi-icon { background: rgba(239,68,68,0.12); }
+        .kpi-card:nth-child(3) .kpi-icon { background: rgba(16,185,129,0.12); }
+        .kpi-card:nth-child(4) .kpi-icon { background: rgba(245,158,11,0.12); }
+        .kpi-card:nth-child(5) .kpi-icon { background: rgba(139,92,246,0.12); }
+        .kpi-card:nth-child(6) .kpi-icon { background: rgba(236,72,153,0.12); }
+
+        .kpi-trend {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 13px;
+            font-weight: 600;
+            padding: 4px 10px;
+            border-radius: 20px;
+        }
+
+        .kpi-trend.up {
+            color: var(--accent-green);
+            background: rgba(16,185,129,0.1);
+        }
+
+        .kpi-trend.down {
+            color: var(--accent-red);
+            background: rgba(239,68,68,0.1);
+        }
+
+        .kpi-value {
+            font-size: 32px;
+            font-weight: 800;
+            margin-bottom: 4px;
+            letter-spacing: -1px;
+        }
+
+        .kpi-label {
+            font-size: 13px;
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+
+        .kpi-sparkline {
+            margin-top: 12px;
+            height: 40px;
+        }
+
+        /* Charts Grid */
+        .charts-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+            margin-bottom: 24px;
+        }
+
+        .chart-card {
+            background: var(--bg-card);
+            border-radius: var(--radius);
+            padding: 24px;
+            box-shadow: var(--shadow-sm);
+            transition: var(--transition);
+        }
+
+        .chart-card:hover {
+            box-shadow: var(--shadow-md);
+        }
+
+        .chart-card.full-width {
+            grid-column: 1 / -1;
+        }
+
+        .chart-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .chart-title {
+            font-size: 16px;
+            font-weight: 700;
+        }
+
+        .chart-subtitle {
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-top: 2px;
+        }
+
+        .chart-actions {
+            display: flex;
+            gap: 6px;
+        }
+
+        .chart-action-btn {
+            padding: 6px 14px;
+            border: 2px solid var(--border-color);
+            border-radius: 8px;
+            background: transparent;
+            color: var(--text-secondary);
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .chart-action-btn.active {
+            background: var(--accent-blue);
+            color: white;
+            border-color: var(--accent-blue);
+        }
+
+        .chart-container {
+            position: relative;
+            height: 300px;
+        }
+
+        .chart-container.small {
+            height: 260px;
+        }
+
+        /* Data Table */
+        .table-card {
+            background: var(--bg-card);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow-sm);
+            overflow: hidden;
+            margin-bottom: 24px;
+        }
+
+        .table-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 20px 24px;
+            border-bottom: 1px solid var(--border-color);
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        .table-search {
+            padding: 10px 16px;
+            padding-left: 40px;
+            border: 2px solid var(--border-color);
+            border-radius: var(--radius-sm);
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            font-size: 14px;
+            width: 280px;
+            transition: var(--transition);
+            outline: none;
+        }
+
+        .table-search:focus {
+            border-color: var(--accent-blue);
+        }
+
+        .search-wrapper {
+            position: relative;
+        }
+
+        .search-icon {
+            position: absolute;
+            left: 14px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-muted);
+            font-size: 14px;
+        }
+
+        .table-wrapper {
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th {
+            padding: 14px 20px;
+            text-align: left;
+            font-size: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--text-muted);
+            background: var(--bg-primary);
+            border-bottom: 1px solid var(--border-color);
+            cursor: pointer;
+            user-select: none;
+            transition: var(--transition);
+            white-space: nowrap;
+        }
+
+        th:hover {
+            color: var(--accent-blue);
+        }
+
+        th .sort-icon {
+            margin-left: 6px;
+            font-size: 10px;
+        }
+
+        td {
+            padding: 14px 20px;
+            font-size: 14px;
+            border-bottom: 1px solid var(--border-color);
+            white-space: nowrap;
+        }
+
+        tr {
+            transition: var(--transition);
+        }
+
+        tbody tr:hover {
+            background: rgba(59,130,246,0.04);
+        }
+
+        .status-badge {
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .status-badge.fraud {
+            background: rgba(239,68,68,0.1);
+            color: var(--accent-red);
+        }
+
+        .status-badge.suspicious {
+            background: rgba(245,158,11,0.1);
+            color: var(--accent-orange);
+        }
+
+        .status-badge.legitimate {
+            background: rgba(16,185,129,0.1);
+            color: var(--accent-green);
+        }
+
+        .status-badge.investigating {
+            background: rgba(139,92,246,0.1);
+            color: var(--accent-purple);
+        }
+
+        .risk-meter {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .risk-bar-bg {
+            width: 60px;
+            height: 6px;
+            background: var(--border-color);
+            border-radius: 3px;
+            overflow: hidden;
+        }
+
+        .risk-bar-fill {
+            height: 100%;
+            border-radius: 3px;
+            transition: width 0.5s ease;
+        }
+
+        .pagination {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 16px 24px;
+            border-top: 1px solid var(--border-color);
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        .pagination-info {
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+
+        .pagination-controls {
+            display: flex;
+            gap: 6px;
+        }
+
+        .page-btn {
+            padding: 8px 14px;
+            border: 2px solid var(--border-color);
+            border-radius: 8px;
+            background: transparent;
+            color: var(--text-secondary);
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .page-btn.active {
+            background: var(--accent-blue);
+            color: white;
+            border-color: var(--accent-blue);
+        }
+
+        .page-btn:hover:not(.active):not(:disabled) {
+            border-color: var(--accent-blue);
+            color: var(--accent-blue);
+        }
+
+        .page-btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        /* Animation classes */
+        .fade-in {
+            animation: fadeIn 0.5s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .count-up {
+            transition: all 0.8s ease;
+        }
+
+        /* Responsive */
+        @media (max-width: 1024px) {
+            .charts-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .dashboard {
+                padding: 12px;
+            }
+
+            .header {
+                padding: 16px;
+            }
+
+            .header-title h1 {
+                font-size: 18px;
+            }
+
+            .kpi-grid {
+                grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+                gap: 12px;
+            }
+
+            .kpi-card {
+                padding: 16px;
+            }
+
+            .kpi-value {
+                font-size: 24px;
+            }
+
+            .filters-bar {
+                padding: 16px;
+            }
+
+            .filter-input, .filter-select {
+                min-width: 100%;
+            }
+
+            .table-search {
+                width: 100%;
+            }
+
+            .chart-container {
+                height: 250px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .kpi-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--bg-primary);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--border-color);
+            border-radius: 3px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--text-muted);
+        }
+
+        /* Tooltip customization */
+        .alert-banner {
+            background: linear-gradient(135deg, rgba(239,68,68,0.1), rgba(245,158,11,0.1));
+            border: 1px solid rgba(239,68,68,0.2);
+            border-radius: var(--radius);
+            padding: 16px 24px;
+            margin-bottom: 24px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 14px;
+            color: var(--accent-red);
+            font-weight: 500;
+        }
+
+        .alert-banner .alert-icon {
+            font-size: 20px;
+        }
+
+        .alert-count {
+            font-weight: 800;
+            font-size: 18px;
+        }
+
+        .export-btn {
+            padding: 8px 16px;
+            background: transparent;
+            border: 2px solid var(--border-color);
+            border-radius: 8px;
+            color: var(--text-secondary);
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .export-btn:hover {
+            border-color: var(--accent-blue);
+            color: var(--accent-blue);
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard">
+        <!-- Header -->
+        <header class="header fade-in">
+            <div class="header-left">
+                <div class="logo">🛡️</div>
+                <div class="header-title">
+                    <h1>UPI Fraud Detection Center</h1>
+                    <p>Real-time transaction monitoring & analytics</p>
+                </div>
+            </div>
+            <div class="header-actions">
+                <div class="live-indicator">
+                    <div class="live-dot"></div>
+                    Live Monitoring
+                </div>
+                <button class="theme-toggle" onclick="toggleTheme()" title="Toggle dark mode"></button>
+            </div>
+        </header>
+
+        <!-- Alert Banner -->
+        <div class="alert-banner fade-in" id="alertBanner">
+            <span class="alert-icon">⚠️</span>
+            <span><span class="alert-count" id="alertCount">23</span> high-risk transactions detected in the last 24 hours — <strong>7 confirmed fraudulent</strong></span>
+        </div>
+
+        <!-- Filters -->
+        <div class="filters-bar fade-in">
+            <div class="filter-group">
+                <label class="filter-label">Date From</label>
+                <input type="date" class="filter-input" id="dateFrom" value="2024-01-01">
+            </div>
+            <div class="filter-group">
+                <label class="filter-label">Date To</label>
+                <input type="date" class="filter-input" id="dateTo" value="2024-12-31">
+            </div>
+            <div class="filter-group">
+                <label class="filter-label">Transaction Type</label>
+                <select class="filter-select" id="txnType">
+                    <option value="all">All Types</option>
+                    <option value="p2p">P2P Transfer</option>
+                    <option value="p2m">P2M Payment</option>
+                    <option value="bill">Bill Payment</option>
+                    <option value="recharge">Recharge</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label class="filter-label">Risk Level</label>
+                <select class="filter-select" id="riskLevel">
+                    <option value="all">All Levels</option>
+                    <option value="critical">Critical (90-100)</option>
+                    <option value="high">High (70-89)</option>
+                    <option value="medium">Medium (40-69)</option>
+                    <option value="low">Low (0-39)</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label class="filter-label">Status</label>
+                <select class="filter-select" id="statusFilter">
+                    <option value="all">All Status</option>
+                    <option value="fraud">Confirmed Fraud</option>
+                    <option value="suspicious">Suspicious</option>
+                    <option value="investigating">Investigating</option>
+                    <option value="legitimate">Legitimate</option>
+                </select>
+            </div>
+            <button class="filter-btn" onclick="applyFilters()">Apply Filters</button>
+            <button class="filter-btn reset" onclick="resetFilters()">Reset</button>
+        </div>
+
+        <!-- KPI Cards -->
+        <div class="kpi-grid" id="kpiGrid"></div>
+
+        <!-- Charts Row 1 -->
+        <div class="charts-grid">
+            <div class="chart-card">
+                <div class="chart-header">
+                    <div>
+                        <div class="chart-title">Fraud Trend Analysis</div>
+                        <div class="chart-subtitle">Daily fraud detection over time</div>
+                    </div>
+                    <div class="chart-actions">
+                        <button class="chart-action-btn active" onclick="setTrendPeriod('daily', this)">Daily</button>
+                        <button class="chart-action-btn" onclick="setTrendPeriod('weekly', this)">Weekly</button>
+                        <button class="chart-action-btn" onclick="setTrendPeriod('monthly', this)">Monthly</button>
+                    </div>
+                </div>
+                <div class="chart-container">
+                    <canvas id="trendChart"></canvas>
+                </div>
+            </div>
+
+            <div class="chart-card">
+                <div class="chart-header">
+                    <div>
+                        <div class="chart-title">Fraud by Category</div>
+                        <div class="chart-subtitle">Distribution of fraud types</div>
+                    </div>
+                </div>
+                <div class="chart-container">
+                    <canvas id="categoryDonut"></canvas>
+                </div>
+            </div>
+
+            <div class="chart-card">
+                <div class="chart-header">
+                    <div>
+                        <div class="chart-title">Hourly Transaction Heatmap</div>
+                        <div class="chart-subtitle">Fraud attempts by hour of day</div>
+                    </div>
+                </div>
+                <div class="chart-container">
+                    <canvas id="hourlyChart"></canvas>
+                </div>
+            </div>
+
+            <div class="chart-card">
+                <div class="chart-header">
+                    <div>
+                        <div class="chart-title">Risk Score Distribution</div>
+                        <div class="chart-subtitle">Transaction risk score breakdown</div>
+                    </div>
+                </div>
+                <div class="chart-container">
+                    <canvas id="riskDistChart"></canvas>
+                </div>
+            </div>
+
+            <div class="chart-card full-width">
+                <div class="chart-header">
+                    <div>
+                        <div class="chart-title">Transaction Volume vs Fraud Amount</div>
+                        <div class="chart-subtitle">Correlation between volume and fraudulent amounts (₹)</div>
+                    </div>
+                </div>
+                <div class="chart-container">
+                    <canvas id="volumeChart"></canvas>
+                </div>
+            </div>
+
+            <div class="chart-card">
+                <div class="chart-header">
+                    <div>
+                        <div class="chart-title">Top Flagged UPI Apps</div>
+                        <div class="chart-subtitle">Fraud reports by platform</div>
+                    </div>
+                </div>
+                <div class="chart-container small">
+                    <canvas id="appsChart"></canvas>
+                </div>
+            </div>
+
+            <div class="chart-card">
+                <div class="chart-header">
+                    <div>
+                        <div class="chart-title">Geographic Fraud Hotspots</div>
+                        <div class="chart-subtitle">Top 8 states by fraud volume</div>
+                    </div>
+                </div>
+                <div class="chart-container small">
+                    <canvas id="geoChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Data Table -->
+        <div class="table-card fade-in">
+            <div class="table-header">
+                <div>
+                    <div class="chart-title">Recent Flagged Transactions</div>
+                    <div class="chart-subtitle" id="tableCount">Showing 1-10 of 150 transactions</div>
+                </div>
+                <div style="display:flex; gap:12px; align-items:center; flex-wrap:wrap;">
+                    <div class="search-wrapper">
+                        <span class="search-icon">🔍</span>
+                        <input type="text" class="table-search" id="tableSearch" placeholder="Search transactions..." oninput="filterTable()">
+                    </div>
+                    <button class="export-btn" onclick="exportCSV()">📊 Export CSV</button>
+                </div>
+            </div>
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                        <tr>
+                            <th onclick="sortTable('id')">Txn ID <span class="sort-icon">↕</span></th>
+                            <th onclick="sortTable('date')">Date & Time <span class="sort-icon">↕</span></th>
+                            <th onclick="sortTable('sender')">Sender UPI <span class="sort-icon">↕</span></th>
+                            <th onclick="sortTable('receiver')">Receiver UPI <span class="sort-icon">↕</span></th>
+                            <th onclick="sortTable('amount')">Amount (₹) <span class="sort-icon">↕</span></th>
+                            <th onclick="sortTable('type')">Type <span class="sort-icon">↕</span></th>
+                            <th onclick="sortTable('risk')">Risk Score <span class="sort-icon">↕</span></th>
+                            <th onclick="sortTable('status')">Status <span class="sort-icon">↕</span></th>
+                        </tr>
+                    </thead>
+                    <tbody id="tableBody"></tbody>
+                </table>
+            </div>
+            <div class="pagination">
+                <div class="pagination-info" id="paginationInfo">Showing 1-10 of 150</div>
+                <div class="pagination-controls" id="paginationControls"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ============ DATA GENERATION ============
+        const upiApps = ['PhonePe', 'Google Pay', 'Paytm', 'BHIM', 'Amazon Pay', 'WhatsApp Pay', 'CRED', 'MobiKwik'];
+        const states = ['Maharashtra', 'Delhi', 'Karnataka', 'Tamil Nadu', 'Uttar Pradesh', 'West Bengal', 'Rajasthan', 'Gujarat', 'Telangana', 'Bihar'];
+        const txnTypes = ['P2P Transfer', 'P2M Payment', 'Bill Payment', 'Recharge'];
+        const fraudCategories = ['SIM Swap', 'Phishing', 'Account Takeover', 'Social Engineering', 'QR Scam', 'Fake UPI ID', 'Malware', 'OTP Fraud'];
+        const statuses = ['fraud', 'suspicious', 'investigating', 'legitimate'];
+        const firstNames = ['Amit', 'Priya', 'Rahul', 'Neha', 'Vijay', 'Anita', 'Suresh', 'Meera', 'Rajesh', 'Kavita', 'Arun', 'Deepa', 'Sanjay', 'Pooja', 'Manoj'];
+        const lastNames = ['Sharma', 'Patel', 'Singh', 'Kumar', 'Verma', 'Reddy', 'Nair', 'Iyer', 'Gupta', 'Joshi', 'Mishra', 'Das', 'Mehta', 'Shah', 'Rao'];
+        const banks = ['sbi', 'hdfc', 'icici', 'axis', 'kotak', 'bob', 'pnb', 'yes', 'idbi', 'canara'];
+
+        function randomFrom(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+        function randomInt(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
+        function randomFloat(min, max) { return Math.random() * (max - min) + min; }
+
+        function generateUPI() {
+            return `${randomFrom(firstNames).toLowerCase()}${randomInt(10,999)}@${randomFrom(banks)}`;
+        }
+
+        function generateTransactions(count) {
+            const transactions = [];
+            const now = new Date();
+            for (let i = 0; i < count; i++) {
+                const daysAgo = randomInt(0, 364);
+                const date = new Date(now);
+                date.setDate(date.getDate() - daysAgo);
+                date.setHours(randomInt(0, 23), randomInt(0, 59), randomInt(0, 59));
+
+                const risk = Math.random() < 0.15 ? randomInt(85, 99) :
+                             Math.random() < 0.3 ? randomInt(65, 84) :
+                             Math.random() < 0.5 ? randomInt(35, 64) : randomInt(5, 34);
+
+                let status;
+                if (risk >= 85) status = Math.random() < 0.7 ? 'fraud' : 'investigating';
+                else if (risk >= 65) status = Math.random() < 0.6 ? 'suspicious' : 'investigating';
+                else if (risk >= 35) status = Math.random() < 0.3 ? 'suspicious' : 'legitimate';
+                else status = 'legitimate';
+
+                const amount = risk > 70 ? randomInt(5000, 99999) : randomInt(50, 15000);
+
+                transactions.push({
+                    id: `TXN${String(200000 + i).padStart(8, '0')}`,
+                    date: date,
+                    sender: generateUPI(),
+                    receiver: generateUPI(),
+                    amount: amount,
+                    type: randomFrom(txnTypes),
+                    typeKey: ['p2p', 'p2m', 'bill', 'recharge'][txnTypes.indexOf(randomFrom(txnTypes))],
+                    risk: risk,
+                    status: status,
+                    app: randomFrom(upiApps),
+                    state: randomFrom(states),
+                    category: randomFrom(fraudCategories)
+                });
+            }
+            return transactions.sort((a, b) => b.date - a.date);
+        }
+
+        let allTransactions = generateTransactions(500);
+        let filteredTransactions = [...allTransactions];
+        let currentPage = 1;
+        const pageSize = 10;
+        let sortField = 'date';
+        let sortDir = 'desc';
+
+        // ============ KPI CARDS ============
+        function calculateKPIs(data) {
+            const totalTxns = data.length;
+            const fraudTxns = data.filter(t => t.status === 'fraud').length;
+            const suspiciousTxns = data.filter(t => t.status === 'suspicious').length;
+            const totalAmount = data.reduce((s, t) => s + t.amount, 0);
+            const fraudAmount = data.filter(t => t.status === 'fraud').reduce((s, t) => s + t.amount, 0);
+            const avgRisk = data.length > 0 ? (data.reduce((s, t) => s + t.risk, 0) / data.length) : 0;
+            const blockedTxns = data.filter(t => t.risk >= 85).length;
+            const detectionRate = totalTxns > 0 ? ((fraudTxns + suspiciousTxns) / totalTxns * 100) : 0;
+
+            return [
+                { icon: '📊', label: 'Total Transactions', value: totalTxns.toLocaleString(), trend: '+12.4%', trendDir: 'up' },
+                { icon: '🚨', label: 'Fraud Detected', value: fraudTxns.toLocaleString(), trend: '-8.2%', trendDir: 'down' },
+                { icon: '⚡', label: 'Suspicious Alerts', value: suspiciousTxns.toLocaleString(), trend: '+5.7%', trendDir: 'up' },
+                { icon: '💰', label: 'Fraud Amount (₹)', value: '₹' + (fraudAmount / 100000).toFixed(1) + 'L', trend: '-15.3%', trendDir: 'down' },
+                { icon: '🛡️', label: 'Blocked High-Risk', value: blockedTxns.toLocaleString(), trend: '+22.1%', trendDir: 'up' },
+                { icon: '📈', label: 'Detection Rate', value: detectionRate.toFixed(1) + '%', trend: '+3.8%', trendDir: 'up' }
+            ];
+        }
+
+        function renderKPIs(data) {
+            const kpis = calculateKPIs(data);
+            const grid = document.getElementById('kpiGrid');
+            grid.innerHTML = kpis.map((kpi, i) => `
+                <div class="kpi-card fade-in" style="animation-delay: ${i * 0.08}s">
+                    <div class="kpi-header">
+                        <div class="kpi-icon">${kpi.icon}</div>
+                        <div class="kpi-trend ${kpi.trendDir}">
+                            ${kpi.trendDir === 'up' ? '↑' : '↓'} ${kpi.trend}
+                        </div>
+                    </div>
+                    <div class="kpi-value">${kpi.value}</div>
+                    <div class="kpi-label">${kpi.label}</div>
+                </div>
+            `).join('');
+        }
+
+        // ============ CHARTS ============
+        let charts = {};
+        const chartColors = {
+            blue: '#3b82f6', red: '#ef4444', green: '#10b981',
+            orange: '#f59e0b', purple: '#8b5cf6', pink: '#ec4899',
+            cyan: '#06b6d4', indigo: '#6366f1'
+        };
+
+        function getChartTextColor() {
+            return document.documentElement.getAttribute('data-theme') === 'dark' ? '#94a3b8' : '#6b7280';
+        }
+
+        function getGridColor() {
+            return document.documentElement.getAttribute('data-theme') === 'dark' ? 'rgba(148,163,184,0.1)' : 'rgba(0,0,0,0.06)';
+        }
+
+        function commonScaleOptions() {
+            return {
+                ticks: { color: getChartTextColor(), font: { size: 11, weight: '500' } },
+                grid: { color: getGridColor(), drawBorder: false }
+            };
+        }
+
+        function renderTrendChart(data, period = 'daily') {
+            const ctx = document.getElementById('trendChart').getContext('2d');
+            if (charts.trend) charts.trend.destroy();
+
+            // Aggregate data by day
+            const dayMap = {};
+            data.forEach(t => {
+                let key;
+                if (period === 'monthly') {
+                    key = `${t.date.getFullYear()}-${String(t.date.getMonth() + 1).padStart(2, '0')}`;
+                } else if (period === 'weekly') {
+                    const weekStart = new Date(t.date);
+                    weekStart.setDate(weekStart.getDate() - weekStart.getDay());
+                    key = weekStart.toISOString().split('T')[0];
+                } else {
+                    key = t.date.toISOString().split('T')[0];
+                }
+                if (!dayMap[key]) dayMap[key] = { total: 0, fraud: 0, suspicious: 0 };
+                dayMap[key].total++;
+                if (t.status === 'fraud') dayMap[key].fraud++;
+                if (t.status === 'suspicious') dayMap[key].suspicious++;
+            });
+
+            const labels = Object.keys(dayMap).sort().slice(-30);
+            const totalData = labels.map(l => dayMap[l]?.total || 0);
+            const fraudData = labels.map(l => dayMap[l]?.fraud || 0);
+            const suspData = labels.map(l => dayMap[l]?.suspicious || 0);
+
+            charts.trend = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels,
+                    datasets: [
+                        {
+                            label: 'Total Transactions',
+                            data: totalData,
+                            borderColor: chartColors.blue,
+                            backgroundColor: 'rgba(59,130,246,0.1)',
+                            fill: true,
+                            tension: 0.4,
+                            pointRadius: 3,
+                            pointHoverRadius: 6,
+                            borderWidth: 2.5
+                        },
+                        {
+                            label: 'Fraud',
+                            data: fraudData,
+                            borderColor: chartColors.red,
+                            backgroundColor: 'rgba(239,68,68,0.1)',
+                            fill: true,
+                            tension: 0.4,
+                            pointRadius: 3,
+                            pointHoverRadius: 6,
+                            borderWidth: 2.5
+                        },
+                        {
+                            label: 'Suspicious',
+                            data: suspData,
+                            borderColor: chartColors.orange,
+                            backgroundColor: 'rgba(245,158,11,0.1)',
+                            fill: true,
+                            tension: 0.4,
+                            pointRadius: 3,
+                            pointHoverRadius: 6,
+                            borderWidth: 2.5
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: { intersect: false, mode: 'index' },
+                    plugins: {
+                        legend: { labels: { color: getChartTextColor(), usePointStyle: true, padding: 20 } },
+                        tooltip: {
+                            backgroundColor: 'rgba(0,0,0,0.85)',
+                            titleColor: '#fff',
+                            bodyColor: '#e2e8f0',
+                            padding: 14,
+                            cornerRadius: 10,
+                            titleFont: { weight: '700' }
+                        }
+                    },
+                    scales: {
+                        x: { ...commonScaleOptions(), ticks: { ...commonScaleOptions().ticks, maxTicksLimit: 10 } },
+                        y: { ...commonScaleOptions(), beginAtZero: true }
+                    },
+                    animation: { duration: 800, easing: 'easeInOutQuart' }
+                }
+            });
+        }
+
+        function renderCategoryDonut(data) {
+            const ctx = document.getElementById('categoryDonut').getContext('2d');
+            if (charts.category) charts.category.destroy();
+
+            const catMap = {};
+            data.filter(t => t.status === 'fraud' || t.status === 'suspicious').forEach(t => {
+                catMap[t.category] = (catMap[t.category] || 0) + 1;
+            });
+
+            const labels = Object.keys(catMap);
+            const values = Object.values(catMap);
+            const colors = [chartColors.red, chartColors.orange, chartColors.blue, chartColors.purple,
+                           chartColors.pink, chartColors.cyan, chartColors.green, chartColors.indigo];
+
+            charts.category = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels,
+                    datasets: [{
+                        data: values,
+                        backgroundColor: colors.slice(0, labels.length),
+                        borderWidth: 0,
+                        hoverOffset: 12
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    cutout: '65%',
+                    plugins: {
+                        legend: {
+                            position: 'right',
+                            labels: { color: getChartTextColor(), usePointStyle: true, padding: 12, font: { size: 12 } }
+                        },
+                        tooltip: {
+                            backgroundColor: 'rgba(0,0,0,0.85)',
+                            padding: 14,
+                            cornerRadius: 10,
+                            callbacks: {
+                                label: ctx => {
+                                    const total = ctx.dataset.data.reduce((a, b) => a + b, 0);
+                                    const pct = ((ctx.parsed / total) * 100).toFixed(1);
+                                    return ` ${ctx.label}: ${ctx.parsed} (${pct}%)`;
+                                }
+                            }
+                        }
+                    },
+                    animation: { animateRotate: true, duration: 1000 }
+                }
+            });
+        }
+
+        function renderHourlyChart(data) {
+            const ctx = document.getElementById('hourlyChart').getContext('2d');
+            if (charts.hourly) charts.hourly.destroy();
+
+            const hourData = new Array(24).fill(0);
+            const hourFraud = new Array(24).fill(0);
+            data.forEach(t => {
+                hourData[t.date.getHours()]++;
+                if (t.status === 'fraud') hourFraud[t.date.getHours()]++;
+            });
+
+            const labels = Array.from({length: 24}, (_, i) => `${String(i).padStart(2, '0')}:00`);
+
+            charts.hourly = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels,
+                    datasets: [
+                        {
+                            label: 'All Transactions',
+                            data: hourData,
+                            backgroundColor: 'rgba(59,130,246,0.3)',
+                            borderColor: chartColors.blue,
+                            borderWidth: 1.5,
+                            borderRadius: 6,
+                            barPercentage: 0.7
+                        },
+                        {
+                            label: 'Fraud',
+                            data: hourFraud,
+                            backgroundColor: 'rgba(239,68,68,0.6)',
+                            borderColor: chartColors.red,
+                            borderWidth: 1.5,
+                            borderRadius: 6,
+                            barPercentage: 0.7
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: { intersect: false, mode: 'index' },
+                    plugins: {
+                        legend: { labels: { color: getChartTextColor(), usePointStyle: true, padding: 20 } },
+                        tooltip: {
+                            backgroundColor: 'rgba(0,0,0,0.85)',
+                            padding: 14,
+                            cornerRadius: 10
+                        }
+                    },
+                    scales: {
+                        x: { ...commonScaleOptions(), ticks: { ...commonScaleOptions().ticks, maxTicksLimit: 12 } },
+                        y: { ...commonScaleOptions(), beginAtZero: true }
+                    },
+                    animation: { duration: 800, easing: 'easeInOutQuart' }
+                }
+            });
+        }
+
+        function renderRiskDistribution(data) {
+            const ctx = document.getElementById('riskDistChart').getContext('2d');
+            if (charts.riskDist) charts.riskDist.destroy();
+
+            const buckets = { '0-20': 0, '21-40': 0, '41-60': 0, '61-80': 0, '81-100': 0 };
+            data.forEach(t => {
+                if (t.risk <= 20) buckets['0-20']++;
+                else if (t.risk <= 40) buckets['21-40']++;
+                else if (t.risk <= 60) buckets['41-60']++;
+                else if (t.risk <= 80) buckets['61-80']++;
+                else buckets['81-100']++;
+            });
+
+            const gradientGreen = ctx.createLinearGradient(0, 0, 0, 300);
+            gradientGreen.addColorStop(0, 'rgba(16,185,129,0.8)');
+            gradientGreen.addColorStop(1, 'rgba(16,185,129,0.2)');
+
+            charts.riskDist = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: Object.keys(buckets),
+                    datasets: [{
+                        label: 'Transactions',
+                        data: Object.values(buckets),
+                        backgroundColor: [
+                            'rgba(16,185,129,0.7)',
+                            'rgba(59,130,246,0.7)',
+                            'rgba(245,158,11,0.7)',
+                            'rgba(239,68,68,0.7)',
+                            'rgba(220,38,38,0.9)'
+                        ],
+                        borderRadius: 8,
+                        borderSkipped: false,
+                        barPercentage: 0.6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            backgroundColor: 'rgba(0,0,0,0.85)',
+                            padding: 14,
+                            cornerRadius: 10,
+                            callbacks: {
+                                title: ctx => `Risk Score: ${ctx[0].label}`,
+                                label: ctx => ` ${ctx.parsed.y} transactions`
+                            }
+                        }
+                    },
+                    scales: {
+                        x: { ...commonScaleOptions(), title: { display: true, text: 'Risk Score Range', color: getChartTextColor() } },
+                        y: { ...commonScaleOptions(), beginAtZero: true, title: { display: true, text: 'Count', color: getChartTextColor() } }
+                    },
+                    animation: { duration: 800 }
+                }
+            });
+        }
+
+        function renderVolumeChart(data) {
+            const ctx = document.getElementById('volumeChart').getContext('2d');
+            if (charts.volume) charts.volume.destroy();
+
+            const monthMap = {};
+            data.forEach(t => {
+                const key = `${t.date.getFullYear()}-${String(t.date.getMonth() + 1).padStart(2, '0')}`;
+                if (!monthMap[key]) monthMap[key] = { volume: 0, fraudAmt: 0 };
+                monthMap[key].volume++;
+                if (t.status === 'fraud') monthMap[key].fraudAmt += t.amount;
+            });
+
+            const labels = Object.keys(monthMap).sort();
+            const volumes = labels.map(l => monthMap[l].volume);
+            const fraudAmts = labels.map(l => Math.round(monthMap[l].fraudAmt / 1000));
+
+            charts.volume = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels.map(l => {
+                        const [y, m] = l.split('-');
+                        return new Date(y, m - 1).toLocaleDateString('en-IN', { month: 'short', year: '2-digit' });
+                    }),
+                    datasets: [
+                        {
+                            label: 'Transaction Volume',
+                            data: volumes,
+                            backgroundColor: 'rgba(59,130,246,0.4)',
+                            borderColor: chartColors.blue,
+                            borderWidth: 1.5,
+                            borderRadius: 6,
+                            yAxisID: 'y',
+                            order: 2
+                        },
+                        {
+                            label: 'Fraud Amount (₹K)',
+                            data: fraudAmts,
+                            type: 'line',
+                            borderColor: chartColors.red,
+                            backgroundColor: 'rgba(239,68,68,0.1)',
+                            fill: true,
+                            tension: 0.4,
+                            pointRadius: 5,
+                            pointHoverRadius: 8,
+                            borderWidth: 3,
+                            yAxisID: 'y1',
+                            order: 1
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: { intersect: false, mode: 'index' },
+                    plugins: {
+                        legend: { labels: { color: getChartTextColor(), usePointStyle: true, padding: 20 } },
+                        tooltip: {
+                            backgroundColor: 'rgba(0,0,0,0.85)',
+                            padding: 14,
+                            cornerRadius: 10
+                        }
+                    },
+                    scales: {
+                        x: commonScaleOptions(),
+                        y: { ...commonScaleOptions(), position: 'left', beginAtZero: true, title: { display: true, text: 'Volume', color: getChartTextColor() } },
+                        y1: { ...commonScaleOptions(), position: 'right', beginAtZero: true, title: { display: true, text: 'Fraud Amount (₹K)', color: getChartTextColor() }, grid: { drawOnChartArea: false } }
+                    },
+                    animation: { duration: 1000 }
+                }
+            });
+        }
+
+        function renderAppsChart(data) {
+            const ctx = document.getElementById('appsChart').getContext('2d');
+            if (charts.apps) charts.apps.destroy();
+
+            const appMap = {};
+            data.filter(t => t.status === 'fraud' || t.status === 'suspicious').forEach(t => {
+                appMap[t.app] = (appMap[t.app] || 0) + 1;
+            });
+
+            const sorted = Object.entries(appMap).sort((a, b) => b[1] - a[1]).slice(0, 6);
+
+            charts.apps = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: sorted.map(s => s[0]),
+                    datasets: [{
+                        label: 'Fraud Reports',
+                        data: sorted.map(s => s[1]),
+                        backgroundColor: [
+                            'rgba(139,92,246,0.7)', 'rgba(59,130,246,0.7)', 'rgba(236,72,153,0.7)',
+                            'rgba(6,182,212,0.7)', 'rgba(245,158,11,0.7)', 'rgba(16,185,129,0.7)'
+                        ],
+                        borderRadius: 8,
+                        barPercentage: 0.6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    indexAxis: 'y',
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: { backgroundColor: 'rgba(0,0,0,0.85)', padding: 14, cornerRadius: 10 }
+                    },
+                    scales: {
+                        x: { ...commonScaleOptions(), beginAtZero: true },
+                        y: commonScaleOptions()
+                    },
+                    animation: { duration: 800 }
+                }
+            });
+        }
+
+        function renderGeoChart(data) {
+            const ctx = document.getElementById('geoChart').getContext('2d');
+            if (charts.geo) charts.geo.destroy();
+
+            const stateMap = {};
+            data.filter(t => t.status === 'fraud').forEach(t => {
+                stateMap[t.state] = (stateMap[t.state] || 0) + 1;
+            });
+
+            const sorted = Object.entries(stateMap).sort((a, b) => b[1] - a[1]).slice(0, 8);
+
+            charts.geo = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: sorted.map(s => s[0]),
+                    datasets: [{
+                        data: sorted.map(s => s[1]),
+                        backgroundColor: [
+                            '#ef4444', '#f59e0b', '#3b82f6', '#8b5cf6',
+                            '#ec4899', '#06b6d4', '#10b981', '#6366f1'
+                        ],
+                        borderWidth: 2,
+                        borderColor: document.documentElement.getAttribute('data-theme') === 'dark' ? '#1e293b' : '#ffffff',
+                        hoverOffset: 8
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    cutout: '55%',
+                    plugins: {
+                        legend: {
+                            position: 'right',
+                            labels: { color: getChartTextColor(), usePointStyle: true, padding: 10, font: { size: 11 } }
+                        },
+                        tooltip: {
+                            backgroundColor: 'rgba(0,0,0,0.85)',
+                            padding: 14,
+                            cornerRadius: 10,
+                            callbacks: {
+                                label: ctx => {
+                                    const total = ctx.dataset.data.reduce((a, b) => a + b, 0);
+                                    const pct = ((ctx.parsed / total) * 100).toFixed(1);
+                                    return ` ${ctx.label}: ${ctx.parsed} cases (${pct}%)`;
+                                }
+                            }
+                        }
+                    },
+                    animation: { animateRotate: true, duration: 1000 }
+                }
+            });
+        }
+
+        // ============ DATA TABLE ============
+        function renderTable(data) {
+            const start = (currentPage - 1) * pageSize;
+            const end = start + pageSize;
+            const pageData = data.slice(start, end);
+
+            const tbody = document.getElementById('tableBody');
+            tbody.innerHTML = pageData.map(t => {
+                const riskColor = t.risk >= 85 ? '#ef4444' : t.risk >= 65 ? '#f59e0b' : t.risk >= 35 ? '#3b82f6' : '#10b981';
+                return `<tr class="fade-in">
+                    <td><strong>${t.id}</strong></td>
+                    <td>${t.date.toLocaleDateString('en-IN')} ${t.date.toLocaleTimeString('en-IN', {hour: '2-digit', minute: '2-digit'})}</td>
+                    <td>${t.sender}</td>
+                    <td>${t.receiver}</td>
+                    <td><strong>₹${t.amount.toLocaleString()}</strong></td>
+                    <td>${t.type}</td>
+                    <td>
+                        <div class="risk-meter">
+                            <div class="risk-bar-bg">
+                                <div class="risk-bar-fill" style="width:${t.risk}%; background:${riskColor}"></div>
+                            </div>
+                            <span style="color:${riskColor}; font-weight:700; font-size:13px">${t.risk}</span>
+                        </div>
+                    </td>
+                    <td><span class="status-badge ${t.status}">● ${t.status.charAt(0).toUpperCase() + t.status.slice(1)}</span></td>
+                </tr>`;
+            }).join('');
+
+            document.getElementById('tableCount').textContent = `Showing ${start + 1}-${Math.min(end, data.length)} of ${data.length} transactions`;
+            document.getElementById('paginationInfo').textContent = `Showing ${start + 1}-${Math.min(end, data.length)} of ${data.length}`;
+
+            const totalPages = Math.ceil(data.length / pageSize);
+            const controls = document.getElementById('paginationControls');
+            let btns = `<button class="page-btn" onclick="goToPage(${currentPage - 1})" ${currentPage === 1 ? 'disabled' : ''}>← Prev</button>`;
+
+            const maxVisible = 5;
+            let startPage = Math.max(1, currentPage - Math.floor(maxVisible / 2));
+            let endPage = Math.min(totalPages, startPage + maxVisible - 1);
+            if (endPage - startPage + 1 < maxVisible) startPage = Math.max(1, endPage - maxVisible + 1);
+
+            for (let i = startPage; i <= endPage; i++) {
+                btns += `<button class="page-btn ${i === currentPage ? 'active' : ''}" onclick="goToPage(${i})">${i}</button>`;
+            }
+            btns += `<button class="page-btn" onclick="goToPage(${currentPage + 1})" ${currentPage === totalPages ? 'disabled' : ''}>Next →</button>`;
+            controls.innerHTML = btns;
+        }
+
+        function goToPage(page) {
+            const totalPages = Math.ceil(filteredTransactions.length / pageSize);
+            if (page < 1 || page > totalPages) return;
+            currentPage = page;
+            renderTable(filteredTransactions);
+        }
+
+        function sortTable(field) {
+            const fieldMap = {
+                id: 'id', date: 'date', sender: 'sender', receiver: 'receiver',
+                amount: 'amount', type: 'type', risk: 'risk', status: 'status'
+            };
+
+            if (sortField === field) {
+                sortDir = sortDir === 'asc' ? 'desc' : 'asc';
+            } else {
+                sortField = field;
+                sortDir = 'desc';
+            }
+
+            filteredTransactions.sort((a, b) => {
+                let va = a[fieldMap[field]];
+                let vb = b[fieldMap[field]];
+                if (typeof va === 'string') va = va.toLowerCase();
+                if (typeof vb === 'string') vb = vb.toLowerCase();
+                if (va instanceof Date) { va = va.getTime(); vb = vb.getTime(); }
+                if (va < vb) return sortDir === 'asc' ? -1 : 1;
+                if (va > vb) return sortDir === 'asc' ? 1 : -1;
+                return 0;
+            });
+
+            currentPage = 1;
+            renderTable(filteredTransactions);
+        }
+
+        function filterTable() {
+            const q = document.getElementById('tableSearch').value.toLowerCase();
+            const statusVal = document.getElementById('statusFilter').value;
+            const riskVal = document.getElementById('riskLevel').value;
+            const typeVal = document.getElementById('txnType').value;
+
+            filteredTransactions = allTransactions.filter(t => {
+                const matchSearch = !q ||
+                    t.id.toLowerCase().includes(q) ||
+                    t.sender.toLowerCase().includes(q) ||
+                    t.receiver.toLowerCase().includes(q) ||
+                    t.type.toLowerCase().includes(q) ||
+                    t.status.toLowerCase().includes(q);
+
+                return matchSearch;
+            });
+
+            currentPage = 1;
+            renderTable(filteredTransactions);
+        }
+
+        // ============ FILTERS ============
+        function applyFilters() {
+            const dateFrom = new Date(document.getElementById('dateFrom').value);
+            const dateTo = new Date(document.getElementById('dateTo').value);
+            dateTo.setHours(23, 59, 59);
+            const txnType = document.getElementById('txnType').value;
+            const riskLevel = document.getElementById('riskLevel').value;
+            const status = document.getElementById('statusFilter').value;
+            const searchQ = document.getElementById('tableSearch').value.toLowerCase();
+
+            filteredTransactions = allTransactions.filter(t => {
+                if (t.date < dateFrom || t.date > dateTo) return false;
+                if (txnType !== 'all') {
+                    const typeMap = { p2p: 'P2P Transfer', p2m: 'P2M Payment', bill: 'Bill Payment', recharge: 'Recharge' };
+                    if (t.type !== typeMap[txnType]) return false;
+                }
+                if (riskLevel !== 'all') {
+                    if (riskLevel === 'critical' && t.risk < 90) return false;
+                    if (riskLevel === 'high' && (t.risk < 70 || t.risk >= 90)) return false;
+                    if (riskLevel === 'medium' && (t.risk < 40 || t.risk >= 70)) return false;
+                    if (riskLevel === 'low' && t.risk >= 40) return false;
+                }
+                if (status !== 'all' && t.status !== status) return false;
+                if (searchQ) {
+                    const match = t.id.toLowerCase().includes(searchQ) ||
+                        t.sender.toLowerCase().includes(searchQ) ||
+                        t.receiver.toLowerCase().includes(searchQ);
+                    if (!match) return false;
+                }
+                return true;
+            });
+
+            currentPage = 1;
+            updateAllViews();
+        }
+
+        function resetFilters() {
+            document.getElementById('dateFrom').value = '2024-01-01';
+            document.getElementById('dateTo').value = '2024-12-31';
+            document.getElementById('txnType').value = 'all';
+            document.getElementById('riskLevel').value = 'all';
+            document.getElementById('statusFilter').value = 'all';
+            document.getElementById('tableSearch').value = '';
+
+            filteredTransactions = [...allTransactions];
+            currentPage = 1;
+            updateAllViews();
+        }
+
+        function updateAllViews() {
+            renderKPIs(filteredTransactions);
+            renderTrendChart(filteredTransactions);
+            renderCategoryDonut(filteredTransactions);
+            renderHourlyChart(filteredTransactions);
+            renderRiskDistribution(filteredTransactions);
+            renderVolumeChart(filteredTransactions);
+            renderAppsChart(filteredTransactions);
+            renderGeoChart(filteredTransactions);
+            renderTable(filteredTransactions);
+
+            // Update alert banner
+            const high = filteredTransactions.filter(t => t.risk >= 85).length;
+            const confirmed = filteredTransactions.filter(t => t.status === 'fraud').length;
+            document.getElementById('alertCount').textContent = high;
+            document.getElementById('alertBanner').querySelector('strong').textContent = `${confirmed} confirmed fraudulent`;
+        }
+
+        function setTrendPeriod(period, btn) {
+            document.querySelectorAll('.chart-action-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            renderTrendChart(filteredTransactions, period);
+        }
+
+        // ============ THEME TOGGLE ============
+        function toggleTheme() {
+            const html = document.documentElement;
+            const current = html.getAttribute('data-theme');
+            html.setAttribute('data-theme', current === 'dark' ? 'light' : 'dark');
+            // Re-render charts for theme colors
+            setTimeout(() => updateAllViews(), 100);
+        }
+
+        // ============ EXPORT CSV ============
+        function exportCSV() {
+            const headers = ['Txn ID', 'Date', 'Sender', 'Receiver', 'Amount', 'Type', 'Risk Score', 'Status'];
+            const rows = filteredTransactions.map(t => [
+                t.id,
+                t.date.toISOString(),
+                t.sender,
+                t.receiver,
+                t.amount,
+                t.type,
+                t.risk,
+                t.status
+            ]);
+
+            let csv = headers.join(',') + '\n';
+            rows.forEach(r => csv += r.join(',') + '\n');
+
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'upi_fraud_transactions.csv';
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        // ============ LIVE UPDATE SIMULATION ============
+        function simulateLiveUpdate() {
+            setInterval(() => {
+                const newTxn = generateTransactions(1)[0];
+                newTxn.date = new Date();
+                allTransactions.unshift(newTxn);
+
+                if (document.getElementById('statusFilter').value === 'all' &&
+                    document.getElementById('txnType').value === 'all' &&
+                    document.getElementById('riskLevel').value === 'all') {
+                    filteredTransactions.unshift(newTxn);
+                }
+
+                renderKPIs(filteredTransactions);
+
+                if (currentPage === 1) {
+                    renderTable(filteredTransactions);
+                }
+            }, 8000);
+        }
+
+        // ============ AUTO-BIND FILTERS FOR LIVE UPDATE ============
+        function bindLiveFilters() {
+            ['dateFrom', 'dateTo', 'txnType', 'riskLevel', 'statusFilter'].forEach(id => {
+                document.getElementById(id).addEventListener('change', applyFilters);
+            });
+        }
+
+        // ============ INIT ============
+        function init() {
+            updateAllViews();
+            simulateLiveUpdate();
+            bindLiveFilters();
+        }
+
+        // Wait for Chart.js to load
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', init);
+        } else {
+            init();
+        }
+    </script>
+</body>
+</html>
